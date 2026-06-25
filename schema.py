@@ -52,11 +52,18 @@ class PasswordChangeRequest(BaseModel):
 # ===================================================================================
 
 
-class Status(Enum):
-    pending = "pending"
-    inprocess = "inprocess"
-    rejected = "rejected"
-    passed = "passed"
+class Status(str, Enum):
+    PENDING = "pending"
+    INPROCESS = "inprocess"
+    REJECTED = "rejected"
+    ACCEPTED = "accepted"
+
+
+class ApplicationAgeFilter(str, Enum):
+    YESTERDAY = "yesterday"
+    LAST_WEEK = "last_week"
+    LAST_2WEEKS = "last_2weeks"
+    LAST_MONTH = "last_month"
 
 
 class ApplicationBase(BaseModel):
