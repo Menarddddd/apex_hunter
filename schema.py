@@ -1,7 +1,7 @@
 from datetime import date
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class Token(BaseModel):
@@ -30,6 +30,20 @@ class UserUpdate(BaseModel):
     first_name: str | None = Field(default=None, min_length=2, max_length=20)
     last_name: str | None = Field(default=None, min_length=2, max_length=20)
     username: str | None = Field(default=None, min_length=7, max_length=30)
+
+
+class PasswordChangeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    current_password: str = Field(min_length=7)
+    new_password: str = Field(min_length=7)
+
+    @model_validator(mode="after")
+    def verify_passwords(self):
+        if self.current_password == self.new_password:
+            raise ValueError("New password must not match current password")
+
+        return self
 
 
 # ===================================================================================
