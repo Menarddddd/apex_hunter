@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 import hashlib
 import secrets
 
@@ -34,7 +35,9 @@ async def get_current_user(
 
     try:
         payload = jwt.decode(
-            token, settings.SECRET_KEY.get_secret_value(), algorithms=settings.ALGORITHM
+            token,
+            settings.SECRET_KEY.get_secret_value(),
+            algorithms=[settings.ALGORITHM],
         )
 
         user_id = payload.get("sub")
@@ -75,7 +78,9 @@ def hash_refresh_token(token: str) -> str:
 
 def create_access_token(to_encode: dict) -> str:
     payload = to_encode.copy()
-    payload["exp"] = settings.EXPIRE_MINUTES
+    payload["exp"] = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.EXPIRE_MINUTES
+    )
 
     token = jwt.encode(
         payload,

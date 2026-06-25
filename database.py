@@ -22,5 +22,5 @@ async def get_db():
     """
     yield async session for db transactions
     """
-    async with AsyncSessionLocal.begin() as db:
+    async with AsyncSessionLocal() as db:
         yield db
