@@ -71,3 +71,16 @@ def generate_refresh_token() -> str:
 
 def hash_refresh_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def create_access_token(to_encode: dict) -> str:
+    payload = to_encode.copy()
+    payload["exp"] = settings.EXPIRE_MINUTES
+
+    token = jwt.encode(
+        payload,
+        settings.SECRET_KEY.get_secret_value(),
+        algorithm=settings.ALGORITHM,
+    )
+
+    return token
