@@ -31,12 +31,12 @@ class Application(Base):
         PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        sa.ForeignKey("users.id", ondelete="CASCADE")
+        sa.ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     company_name: Mapped[str] = mapped_column(sa.String(100))
     job_title: Mapped[str] = mapped_column(sa.String(100))
-    status: Mapped[str] = mapped_column(sa.String(100))
-    applied_date: Mapped[date] = mapped_column(sa.Date)
+    status: Mapped[str] = mapped_column(sa.String(100), index=True)
+    applied_date: Mapped[date] = mapped_column(sa.Date, index=True)
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True), server_default=sa.func.now()
     )
