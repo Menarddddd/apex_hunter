@@ -20,7 +20,7 @@ class UserCreate(UserBase):
     password: str = Field(min_length=7)
 
 
-class UserResponse(BaseModel):
+class UserResponse(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
 
