@@ -1,7 +1,8 @@
 from datetime import date
 from enum import Enum
+from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class Token(BaseModel):
@@ -22,6 +23,8 @@ class UserCreate(UserBase):
 
 class UserResponse(UserBase):
     model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
 
 
 class UserUpdate(BaseModel):
@@ -60,7 +63,14 @@ class ApplicationBase(BaseModel):
     company_name: str = Field(min_length=1, max_length=30)
     job_title: str = Field(min_length=5, max_length=30)
     status: Status
-    applied_date: date = Field(default=date.today())
+    applied_date: date = Field(default_factory=date.today)
+
+    @field_validator("applied_date")
+    @classmethod
+    def validate_date(cls, v: date):
+        if v > date.today():
+            raise ValueError("Applied date must not be in future")
+        return v
 
 
 class ApplicationCreate(ApplicationBase):
@@ -70,14 +80,21 @@ class ApplicationCreate(ApplicationBase):
 class ApplicationResponse(ApplicationBase):
     model_config = ConfigDict(from_attributes=True)
 
+    id: UUID
+    user_id: UUID
+
 
 class ApplicationUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     company_name: str | None = Field(default=None, min_length=1, max_length=30)
     job_title: str | None = Field(default=None, min_length=5, max_length=30)
     applied_date: date | None = Field(default=None)
+    status: Status | None = Field(default=None)
 
-
-class ApplicationStatusUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    status: Status
+    @field_validator("applied_date")
+    @classmethod
+    def validate_date(cls, v: date):
+        if v > date.today():
+            raise ValueError("Applied date must not be in future")
+        return v
