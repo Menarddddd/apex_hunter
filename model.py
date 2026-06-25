@@ -17,6 +17,11 @@ class User(Base):
     username: Mapped[str] = mapped_column(sa.String(100), unique=True)
     hashed_password: Mapped[str] = mapped_column(sa.String(255))
 
+    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
     applications: Mapped[list["Application"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
@@ -42,3 +47,21 @@ class Application(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="applications")
+
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    hashed_token: Mapped[str] = mapped_column(sa.String(255))
+    revoked: Mapped[bool] = mapped_column(sa.Boolean, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now()
+    )
+
+    user: Mapped["User"] = relationship(back_populates="refresh_tokens")
