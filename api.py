@@ -1,19 +1,23 @@
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from model import Application, User
 from schema import (
+    ApplicationAgeFilter,
     ApplicationCreate,
+    ApplicationPageResponse,
     ApplicationResponse,
     ApplicationUpdate,
     PasswordChangeRequest,
+    Status,
     Token,
     UserCreate,
     UserResponse,
@@ -152,6 +156,9 @@ async def create_application(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """
+    Create an application and return it
+    """
     new_application = Application(
         user_id=current_user.id,
         company_name=form_data.company_name.strip(),
@@ -167,19 +174,62 @@ async def create_application(
     return new_application
 
 
-@router.get(
-    "/applications",
-    response_model=list[ApplicationResponse],
-    status_code=status.HTTP_200_OK,
-)
+@router.get("/applications", response_model=ApplicationPageResponse)
 async def get_applications(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    limit: Annotated[int, Query()] = 10,
+    page: Annotated[int, Query(ge=1)] = 1,
+    status: Status | None = None,
+    ApplicationAge: ApplicationAgeFilter | None = None,
 ):
-    response = await db.execute(
-        select(Application).where(Application.user_id == current_user.id)
+    """
+    Retrive user's applications with offset pagination
+    Status & Application age filter supported
+    Return applications response count
+    """
+    filters = []
+
+    if status:
+        filters.append(Application.status == status)
+
+    now = datetime.now(timezone.utc)
+
+    if ApplicationAge == ApplicationAgeFilter.YESTERDAY:
+        filters.append(Application.applied_date >= now - timedelta(days=1))
+    elif ApplicationAge == ApplicationAgeFilter.LAST_WEEK:
+        filters.append(Application.applied_date >= now - timedelta(days=7))
+    elif ApplicationAge == ApplicationAgeFilter.LAST_2WEEKS:
+        filters.append(Application.applied_date >= now - timedelta(days=14))
+    elif ApplicationAge == ApplicationAgeFilter.LAST_MONTH:
+        filters.append(Application.applied_date >= now - timedelta(days=30))
+
+    result = await db.execute(
+        select(Application, func.count().over().label("total_count"))  # Window function
+        .where(Application.user_id == current_user.id, *filters)
+        .limit(limit)
+        .offset((page - 1) * limit)
     )
-    return response.scalars().all()
+
+    rows = result.all()
+
+    if not rows:
+        return {
+            "items": [],
+            "count": 0,
+            "limit": limit,
+            "page": page,
+        }
+
+    applications = [row[0] for row in rows]  # Extract Application objects
+    total_count = rows[0][1]  # Get total count from first row
+
+    return {
+        "items": applications,
+        "count": total_count,
+        "limit": limit,
+        "page": page,
+    }
 
 
 @router.get(
@@ -192,6 +242,9 @@ async def get_application(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """
+    Get an application or raise 404
+    """
     response = await db.execute(
         select(Application).where(
             Application.id == application_id, Application.user_id == current_user.id
@@ -220,6 +273,10 @@ async def update_application(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """
+    Update an application | raise 400 or 404
+    """
+
     application_data = form_data.model_dump(exclude_unset=True)
 
     if not application_data:
@@ -259,6 +316,9 @@ async def delete_application(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """
+    Delete an application or raise 404
+    """
     response = await db.execute(
         select(Application).where(
             Application.id == application_id, Application.user_id == current_user.id
