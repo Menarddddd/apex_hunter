@@ -105,3 +105,10 @@ class ApplicationUpdate(BaseModel):
         if v > date.today():
             raise ValueError("Applied date must not be in future")
         return v
+
+
+class ApplicationPageResponse(BaseModel):
+    items: list[ApplicationResponse]
+    count: int
+    limit: int
+    page: int
